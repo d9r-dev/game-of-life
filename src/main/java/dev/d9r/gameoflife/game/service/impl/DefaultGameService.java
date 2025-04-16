@@ -13,36 +13,54 @@ public class DefaultGameService implements GameService {
 
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
-                var leftCoord = x - 1 < 0 ? width - 1 : x - 1;
-                var topCoord = y - 1 < 0 ? height - 1 : y - 1;
-                var rightCoord = x + 1 > width - 1 ? 0 : x + 1;
-                var bottomCoord = y + 1 > height - 1 ? 0 : y + 1;
+                var leftCoord = x - 1;
+                var topCoord = y - 1;
+                var rightCoord = x + 1;
+                var bottomCoord = y + 1;
 
                 int neighbors = 0;
 
-                if (game[leftCoord][topCoord]) {
-                    neighbors++;
+                if(leftCoord >= 0) {
+                    if(game[leftCoord][y]) {
+                        neighbors++;
+                    }
+                    if(topCoord >= 0) {
+                        if(game[leftCoord][topCoord]) {
+                            neighbors++;
+                        }
+                    }
+                    if(bottomCoord < height) {
+                        if(game[leftCoord][bottomCoord]) {
+                            neighbors++;
+                        }
+                    }
                 }
-                if (game[x][topCoord]) {
-                    neighbors++;
+
+                if(rightCoord < width) {
+                    if(game[rightCoord][y]) {
+                        neighbors++;
+                    }
+                    if(topCoord >= 0) {
+                        if(game[rightCoord][topCoord]) {
+                            neighbors++;
+                        }
+                    }
+                    if(bottomCoord < height) {
+                        if(game[rightCoord][bottomCoord]) {
+                            neighbors++;
+                        }
+                    }
                 }
-                if (game[rightCoord][topCoord]) {
-                    neighbors++;
+
+                if(topCoord >= 0) {
+                    if(game[x][topCoord]) {
+                        neighbors++;
+                    }
                 }
-                if (game[leftCoord][y]) {
-                    neighbors++;
-                }
-                if (game[rightCoord][y]) {
-                    neighbors++;
-                }
-                if (game[leftCoord][bottomCoord]) {
-                    neighbors++;
-                }
-                if (game[x][bottomCoord]) {
-                    neighbors++;
-                }
-                if (game[rightCoord][bottomCoord]) {
-                    neighbors++;
+                if(bottomCoord < height) {
+                    if(game[x][bottomCoord]) {
+                        neighbors++;
+                    }
                 }
 
                 if (game[x][y] && (neighbors == 2 || neighbors == 3)) {
