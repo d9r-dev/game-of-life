@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.4.4'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id "com.github.node-gradle.node" version "7.1.0"
 }
 
 group = 'dev.d9r'
@@ -16,6 +17,7 @@ java {
 repositories {
 	mavenCentral()
 }
+
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
@@ -33,3 +35,22 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+node {
+	version = '20.11.1'         // or any version you prefer
+	download = true             // download Node locally
+	npmInstallCommand = "ci"
+	nodeProjectDir = file("src/main/resources/ui_src")
+}
+
+processResources.dependsOn npmInstall
+npmInstall.workingDir = file("src/main/resources/ui/gol-frontend")
+npmInstall.dependsOn(nodeSetup)
+
+tasks.register('npmBuild', NpmTask) {
+	args = ['run', 'build']
+	workingDir = file("src/main/resources/ui_src")
+	dependsOn npmInstall
+}
+
+build.dependsOn npmBuild
