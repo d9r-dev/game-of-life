@@ -9,11 +9,15 @@ public class GameOfLife {
     private final GameService gameService;
 
     private boolean[][] board;
+    private boolean running;
+    private String sessionId;
 
     //TODO: Insert a game template
-    public GameOfLife(GameService gameService) {
+    public GameOfLife(GameService gameService, String sessionId) {
         this.gameService = gameService;
-        this.setBoard(this.gameService.createRandomGame(20, 60));
+        this.setBoard(this.gameService.createRandomGame(200, 200));
+        this.startGame();
+        this.setSessionId(sessionId);
     }
 
     public void printBoard() {
@@ -30,6 +34,14 @@ public class GameOfLife {
         }
     }
 
+    public void pauseGame() {
+        this.setRunning(false);
+    }
+
+    public void startGame() {
+        this.setRunning(true);
+    }
+
     public void updateBoard() {
         this.setBoard(this.gameService.updateGame(this.board));
     }
@@ -40,5 +52,21 @@ public class GameOfLife {
 
     public void setBoard(boolean[][] board) {
         this.board = board;
+    }
+
+    public boolean isRunning() {
+        return running;
+    }
+
+    public void setRunning(boolean running) {
+        this.running = running;
+    }
+
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
     }
 }

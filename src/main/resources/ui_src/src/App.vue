@@ -1,17 +1,19 @@
 <template>
   <div>
     lelelel
+    <input v-model="sessionId"/>
     <button @click="connect">Connect</button>
+    <button @click="stop">Strop</button>
 
     <div v-for="row in grid" class="row">
       <div key="row" v-for="cell in row" class="cell" :class="cell ? 'alive' : 'dead'">
       </div>
-      </div>
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref } from "vue";
+import {ref} from "vue";
 import SockJS from "sockjs-client";
 import {Client, type Message, Stomp} from "@stomp/stompjs";
 
@@ -19,18 +21,21 @@ type Grid = boolean[][];
 
 const grid = ref<Grid>([]);
 const session = ref<string>("");
+const sessionId = ref<string>("");
+const stompClient = ref<Client>();
 
 function connect() {
+  if (sessionId.value === "") return;
   const socket = ref<WebSocket>(new SockJS("/ws"));
-  const stompClient = ref<Client>(Stomp.over(socket.value));
+  stompClient.value = Stomp.over(socket.value);
 
   stompClient.value.activate();
 
   stompClient.value.onConnect = () => {
-    stompClient.value.subscribe("/topic/session", (message: Message) => {
+    stompClient.value?.subscribe("/topic/session", (message: Message) => {
       session.value = JSON.parse(message.body).sessionId;
       console.log("Session: " + session.value);
-      stompClient.value.subscribe(
+      stompClient.value?.subscribe(
         "/topic/" + session.value,
         (message: Message) => {
           grid.value = JSON.parse(message.body);
@@ -38,19 +43,22 @@ function connect() {
         }
       );
     });
-    stompClient.value.publish({ destination: "/game/start" });
+    stompClient.value?.publish({
+      destination: "/game/start",
+      body: JSON.stringify({sessionId: sessionId.value})
+    });
   };
+}
+
+function stop() {
+  stompClient.value?.publish({
+    destination: "/game/stop",
+    body: JSON.stringify({sessionId: sessionId.value})
+  })
 }
 </script>
 
 <style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-}
-
 .row {
   display: flex;
   flex-direction: row;
@@ -59,9 +67,9 @@ function connect() {
 }
 
 .cell {
-  width: 50px;
-  height: 50px;
-  border: 2px solid black;
+  flex: 1 0 5px;
+  height: 5px;
+  border: 1px solid black;
 }
 
 .cell.alive {

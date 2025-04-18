@@ -12,6 +12,7 @@ export default defineConfig({
     outDir: "../static/",
     emptyOutDir: true,
     rollupOptions: {
+      input: "src/main.ts",
       output: {
         inlineDynamicImports: true,
         entryFileNames: `assets/[name].js`,

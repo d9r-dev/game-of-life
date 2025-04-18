@@ -19,9 +19,8 @@ public class GameManager {
         this.simpMessagingTemplate = simpMessagingTemplate;
     }
 
-    public String createSession() {
-        String sessionId = UUID.randomUUID().toString();
-        sessionGames.put(sessionId, gameFactory.createGame());
+    public String createSession(String sessionId) {
+        sessionGames.put(sessionId, gameFactory.createGame(sessionId));
         return sessionId;
     }
 
@@ -29,10 +28,10 @@ public class GameManager {
         return sessionGames.get(sessionId);
     }
 
-    @Scheduled(fixedRate = 1000)
+    @Scheduled(fixedRate = 250)
     public void updateGame() {
-        sessionGames.values().forEach(GameOfLife::updateBoard);
-        sessionGames.keySet().forEach(this::sendMessage);
+        sessionGames.values().stream().filter(GameOfLife::isRunning).forEach(GameOfLife::updateBoard);
+        sessionGames.keySet().stream().filter(sessionId -> sessionGames.get(sessionId).isRunning()).forEach(this::sendMessage);
     }
 
     private void sendMessage(String sessionId) {

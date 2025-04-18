@@ -39,12 +39,12 @@ tasks.named('test') {
 node {
 	version = '20.11.1'         // or any version you prefer
 	download = true             // download Node locally
-	npmInstallCommand = "ci"
+	npmInstallCommand = "install"
+	npmWorkDir = file("src/main/resources/ui_src")
 	nodeProjectDir = file("src/main/resources/ui_src")
 }
 
 processResources.dependsOn npmInstall
-npmInstall.workingDir = file("src/main/resources/ui/gol-frontend")
 npmInstall.dependsOn(nodeSetup)
 
 tasks.register('npmBuild', NpmTask) {

@@ -13,7 +13,7 @@ public class GameFactory {
         this.gameService = gameService;
     }
 
-    public GameOfLife createGame() {
-        return new GameOfLife(gameService);
+    public GameOfLife createGame(String sessionId) {
+        return new GameOfLife(gameService, sessionId);
     }
 }
