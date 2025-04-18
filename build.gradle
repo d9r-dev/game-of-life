@@ -45,7 +45,6 @@ node {
 	nodeProjectDir = file("src/main/resources/ui_src")
 }
 
-processResources.dependsOn npmInstall
 npmInstall.dependsOn(nodeSetup)
 
 tasks.register('npmBuild', NpmTask) {
@@ -53,5 +52,4 @@ tasks.register('npmBuild', NpmTask) {
 	workingDir = file("src/main/resources/ui_src")
 	dependsOn npmInstall
 }
-
-build.dependsOn npmBuild
+processResources.dependsOn npmBuild
