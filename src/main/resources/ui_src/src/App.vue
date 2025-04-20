@@ -31,7 +31,10 @@ const sessionId = ref<string>('')
 const stompClient = ref<Client>()
 
 onMounted(() => {
-  const socket = ref<WebSocket>(new SockJS('https://localhost:8080/ws'))
+  const WS_BASE_URL =
+    window.location.protocol === 'https:' ? 'https://gol.d9r.dev/ws' : 'http://localhost:8080/ws'
+
+  const socket = ref<WebSocket>(new SockJS(WS_BASE_URL))
   stompClient.value = Stomp.over(socket.value)
 
   stompClient.value.activate()
