@@ -31,7 +31,7 @@ const sessionId = ref<string>('')
 const stompClient = ref<Client>()
 
 onMounted(() => {
-  const socket = ref<WebSocket>(new SockJS('/ws'))
+  const socket = ref<WebSocket>(new SockJS('https://localhost:8080/ws'))
   stompClient.value = Stomp.over(socket.value)
 
   stompClient.value.activate()
