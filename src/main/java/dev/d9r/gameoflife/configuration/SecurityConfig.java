@@ -18,6 +18,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf
                         .ignoringRequestMatchers("/ws/**") // Allow WebSocket handshake
                 )
+                .cors(withDefaults())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/ws/**").permitAll() // STOMP/SockJS endpoint
                         .requestMatchers("/actuator/**").permitAll() // Optional: health checks
