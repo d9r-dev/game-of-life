@@ -21,6 +21,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/ws/**").permitAll() // STOMP/SockJS endpoint
                         .requestMatchers("/actuator/**").permitAll() // Optional: health checks
+                        .requestMatchers("/login/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .httpBasic(withDefaults()); // Or formLogin(), JWT, etc.
