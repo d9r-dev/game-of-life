@@ -20,7 +20,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // configures the Broker URL
-        registry.addEndpoint("/ws").setAllowedOrigins("*").withSockJS().setStreamBytesLimit(15 * 1024)
+        registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS().setStreamBytesLimit(15 * 1024)
                 .setHttpMessageCacheSize(15 * 1024);
     }
 
