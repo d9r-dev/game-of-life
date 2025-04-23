@@ -24,6 +24,9 @@ type ResponseMessage = {
   error: boolean
   errorMessage: string | null
 }
+type Headers = {
+  [key: string]: string
+}
 
 const grid = ref<Grid>([])
 const session = ref<string>('')
@@ -31,11 +34,28 @@ const sessionId = ref<string>('')
 const stompClient = ref<Client>()
 
 onMounted(() => {
+  let headerName = ''
+  let headerToken = ''
+  const header: Headers = {}
   const WS_BASE_URL =
     window.location.protocol === 'https:' ? 'https://gol.d9r.dev/ws' : 'http://localhost:8080/ws'
+  const headerNameInput = document.getElementById('header-name') as HTMLInputElement | null
+  const headerTokenInput = document.getElementById('header-token') as HTMLInputElement | null
+  if (headerNameInput && headerTokenInput) {
+    headerName = headerNameInput.value
+    headerToken = headerTokenInput.value
+    header[headerName] = headerToken
+  } else {
+    console.error('Header name or token not found')
+  }
 
   const socket = ref<WebSocket>(new SockJS(WS_BASE_URL))
-  stompClient.value = Stomp.over(socket.value)
+  stompClient.value = new Client({
+    webSocketFactory: () => socket.value,
+    connectHeaders: {
+      [headerName]: headerToken,
+    },
+  })
 
   stompClient.value.activate()
   stompClient.value.onConnect = () => {
