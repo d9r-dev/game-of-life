@@ -1,22 +1,29 @@
 package dev.d9r.gameoflife.game;
 
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import dev.d9r.gameoflife.controller.GameController;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class GameManager {
     private final Map<String, GameOfLife> sessionGames = new ConcurrentHashMap<>();
-    private final GameFactory gameFactory;
-    private final SimpMessagingTemplate simpMessagingTemplate;
 
-    public GameManager(GameFactory gameFactory, SimpMessagingTemplate simpMessagingTemplate) {
+    public Map<String, List<SseEmitter>> getEmitters() {
+        return emitters;
+    }
+
+    private final Map<String, List<SseEmitter>> emitters = new ConcurrentHashMap<>();
+    private final GameFactory gameFactory;
+
+    public GameManager(GameFactory gameFactory) {
         this.gameFactory = gameFactory;
-        this.simpMessagingTemplate = simpMessagingTemplate;
     }
 
     public String createSession(String sessionId) {
@@ -36,7 +43,27 @@ public class GameManager {
 
     private void sendMessage(String sessionId) {
         GameOfLife gameOfLife = sessionGames.get(sessionId);
-        simpMessagingTemplate.convertAndSend("/topic/" + sessionId, gameOfLife.getBoard());
+        sendUpdate(sessionId, gameOfLife.getBoard());
+    }
+
+    public void sendUpdate(String sessionId, boolean[][] gameState) {
+        List<SseEmitter> sessionEmitters = emitters.get(sessionId);
+        if (sessionEmitters == null) return;
+
+        List<SseEmitter> deadEmitters = new ArrayList<>();
+
+        for (SseEmitter emitter : sessionEmitters) {
+            try {
+                emitter.send(SseEmitter.event()
+                        .name("GAME_UPDATE")
+                        .data(gameState));
+            } catch (IOException e) {
+                deadEmitters.add(emitter);
+            }
+        }
+
+        // Remove any dead emitters
+        sessionEmitters.removeAll(deadEmitters);
     }
 
 }

@@ -1,14 +1,20 @@
 package dev.d9r.gameoflife.controller;
 
 import dev.d9r.gameoflife.game.GameManager;
-import dev.d9r.gameoflife.models.SessionMessage;
-import dev.d9r.gameoflife.models.SessionRequest;
+import dev.d9r.gameoflife.game.GameOfLife;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
-import org.springframework.stereotype.Controller;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-@Controller
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+@RestController
 public class GameController {
     private final GameManager gameManager;
 
@@ -17,47 +23,84 @@ public class GameController {
         this.gameManager = gameManager;
     }
 
-    @MessageMapping("/start")
-    @SendTo("/topic/session")
-    public SessionMessage startGame(SessionRequest req) {
-        var game = gameManager.getGame(req.getSessionId());
-        if (game != null && !game.isRunning()) {
-            game.startGame();
-            return new SessionMessage(req.getSessionId(), false, null);
-        }
+    @GetMapping(path = "/stream-game/{sessionId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamGameUpdates(@PathVariable String sessionId) {
+        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+        var emitters = gameManager.getEmitters();
 
+        // Add emitter to the session's list
+        emitters.computeIfAbsent(sessionId, id -> new CopyOnWriteArrayList<>()).add(emitter);
+
+        emitter.onCompletion(() -> emitters.remove(emitter));
+        emitter.onTimeout(() -> emitters.remove(emitter));
+        emitter.onError(e -> emitters.remove(emitter));
+
+        var game = gameManager.getGame(sessionId);
         if (game == null) {
-            return new SessionMessage(null, true, "Game not found");
+            emitter.completeWithError(new RuntimeException("Game not found"));
         }
 
-        return new SessionMessage(null, true, "Game is already running");
+        // Send an initial event to establish the connection
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("board", game.getBoard());
+            data.put("sessionId", sessionId);
+            data.put("message", "Connection established!");
+            emitter.send(SseEmitter.event()
+                    .name("INIT")
+                    .data(data));
+        } catch (IOException e) {
+            emitter.completeWithError(e);
+        }
+
+        return emitter;
     }
 
-    @MessageMapping("/connect")
-    @SendTo("/topic/session")
-    public SessionMessage connect(SessionRequest req) {
-        var game = gameManager.getGame(req.getSessionId());
-        if (game != null) {
-            return new SessionMessage(req.getSessionId(), false, null);
+    private void removeEmitter(String sessionId, SseEmitter emitter) {
+        // Remove emitter from session
+        List<SseEmitter> sessionEmitters = gameManager.getEmitters().get(sessionId);
+        if (sessionEmitters != null) {
+            sessionEmitters.remove(emitter);
+
+            // If this was the last emitter for this session, clean up the session
+            if (sessionEmitters.isEmpty()) {
+                gameManager.getEmitters().remove(sessionId);
+            }
         }
-        return new SessionMessage(null, true, "Game not found");
     }
 
-    @MessageMapping("/create")
-    @SendTo("/topic/session")
-    public SessionMessage createSession(SessionRequest req) {
-        var game = gameManager.getGame(req.getSessionId());
+    @PostMapping("/game/{sessionId}/start")
+    public ResponseEntity<String> startGame(@PathVariable String sessionId) {
+        GameOfLife game = gameManager.getGame(sessionId);
         if (game == null) {
-            var sId = gameManager.createSession(req.getSessionId());
-            return new SessionMessage(sId, false, null);
+            return ResponseEntity.notFound().build();
+        }
+        game.startGame();
+        return ResponseEntity.ok("Game started for session " + sessionId);
+    }
+
+    @PostMapping("/game/{sessionId}/stop")
+    public ResponseEntity<String> stopGame(@PathVariable String sessionId) {
+        GameOfLife game = gameManager.getGame(sessionId);
+        if (game == null) {
+            return ResponseEntity.notFound().build();
+        }
+        game.pauseGame();
+        return ResponseEntity.ok("Game stopped for session " + sessionId);
+    }
+
+    @PostMapping("/game/create/{sessionId}")
+    public ResponseEntity<Map<String, String>> createGame(@PathVariable String sessionId) {
+        var game = gameManager.getGame(sessionId);
+        String newSessionId;
+        if (game == null) {
+            newSessionId = gameManager.createSession(sessionId);
+            HashMap<String, String> response = new HashMap<>();
+            response.put("sessionId", newSessionId);
+            return ResponseEntity.ok(response);
         } else {
-            return new SessionMessage(null, true, "Session already exists");
+            return ResponseEntity.badRequest().build();
         }
-    }
-
-    @MessageMapping("/stop")
-    public void stopGame(SessionRequest req) {
-        gameManager.getGame(req.getSessionId()).pauseGame();
     }
 
 }

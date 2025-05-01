@@ -1,6 +1,5 @@
 <template>
   <div>
-    lelelel
     <input v-model="sessionId" />
     <button @click="create">Create</button>
     <button @click="connect">Connect</button>
@@ -14,80 +13,95 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue'
-import SockJS from 'sockjs-client'
-import { Client, type Message, Stomp } from '@stomp/stompjs'
+import { ref } from 'vue'
 
 type Grid = boolean[][]
-type ResponseMessage = {
-  sessionId: string | null
-  error: boolean
-  errorMessage: string | null
+type CreateMessage = {
+  sessionId: string
+}
+type InitMessage = {
+  board: Grid
+  sessionId: string
+  message: string
 }
 
 const grid = ref<Grid>([])
 const session = ref<string>('')
 const sessionId = ref<string>('')
-const stompClient = ref<Client>()
+const eventSource = ref<EventSource>()
 
-onMounted(() => {
-  const WS_BASE_URL =
-    window.location.protocol === 'https:' ? 'https://gol.d9r.dev/ws' : 'http://localhost:8080/ws'
-  const socket = ref<WebSocket>(new SockJS(WS_BASE_URL))
-  stompClient.value = new Client({
-    webSocketFactory: () => socket.value,
+const create = () => {
+  fetch('/game/create/' + sessionId.value, {
+    method: 'POST',
   })
-
-  stompClient.value.activate()
-  stompClient.value.onConnect = () => {
-    stompClient.value?.subscribe('/topic/session', (message: Message) => {
-      const response: ResponseMessage = JSON.parse(message.body)
-      if (response.error) {
-        alert(response.errorMessage)
-        return
+    .then((response) => {
+      if (response.ok) {
+        return response.json()
       }
-
-      session.value = response.sessionId ? response.sessionId : ''
-      if (session.value === '') {
-        alert('Session not found')
-        return
-      }
-      stompClient.value?.subscribe('/topic/' + session.value, (message: Message) => {
-        grid.value = JSON.parse(message.body)
-      })
+      throw new Error(response.statusText)
     })
+    .then((data: CreateMessage) => {
+      session.value = data.sessionId!
+      connectToSession(session.value)
+    })
+}
+
+const connectToSession = (sessionId: string) => {
+  session.value = sessionId
+  const url = new URL(window.location.href)
+  url.searchParams.set('sessionId', sessionId)
+  window.history.pushState({}, '', url)
+
+  if (eventSource.value) {
+    eventSource.value.close()
   }
-})
 
-function connect() {
-  if (sessionId.value === '') {
-    alert("Session id can't be empty")
-    return
-  }
-  stompClient.value?.publish({
-    destination: '/game/connect',
-    body: JSON.stringify({ sessionId: sessionId.value }),
+  eventSource.value = new EventSource('/stream-game/' + sessionId)
+
+  eventSource.value.addEventListener('INIT', (event) => {
+    const data = JSON.parse(event.data) as InitMessage
+    grid.value = data.board
+    console.log(data.message)
+    sessionId = data.sessionId
+  })
+
+  eventSource.value.addEventListener('GAME_UPDATE', (event) => {
+    grid.value = JSON.parse(event.data) as Grid
   })
 }
 
-function create() {
-  stompClient.value?.publish({
-    destination: '/game/create',
-    body: JSON.stringify({ sessionId: sessionId.value }),
-  })
+const connect = () => {
+  connectToSession(sessionId.value)
 }
 
-function stop() {
-  stompClient.value?.publish({
-    destination: '/game/stop',
-    body: JSON.stringify({ sessionId: sessionId.value }),
+const start = () => {
+  fetch('/game/' + session.value + '/start', {
+    method: 'POST',
   })
+    .then((response) => {
+      if (response.ok) {
+        return response.json()
+      }
+      throw new Error(response.statusText)
+    })
+    .then((data) => {
+      console.log(data)
+    })
 }
-function start() {
-  stompClient.value?.publish({
-    destination: '/game/start',
-    body: JSON.stringify({ sessionId: sessionId.value }),
+
+const stop = () => {
+  fetch('/game/' + session.value + '/stop', {
+    method: 'POST',
   })
+    .then((response) => {
+      if (response.ok) {
+        return response.json()
+      }
+      throw new Error(response.statusText)
+    })
+    .then((data) => {
+      console.log(data)
+    })
 }
 </script>
 
