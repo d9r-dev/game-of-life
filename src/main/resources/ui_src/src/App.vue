@@ -16,6 +16,10 @@
 import { ref } from 'vue'
 
 type Grid = boolean[][]
+type ErrorMessage = {
+  error: string
+  message: string
+}
 type CreateMessage = {
   sessionId: string
 }
@@ -35,14 +39,16 @@ const create = () => {
     method: 'POST',
   })
     .then((response) => {
-      if (response.ok) {
-        return response.json()
-      }
-      throw new Error(response.statusText)
+      return response.json()
     })
-    .then((data: CreateMessage) => {
-      session.value = data.sessionId!
-      connectToSession(session.value)
+    .then((data: CreateMessage | ErrorMessage) => {
+      if ('error' in data) {
+        console.error('Could not create game: ' + data.message)
+        alert('Could not create game: ' + data.message)
+      } else {
+        session.value = data.sessionId!
+        connectToSession(session.value)
+      }
     })
 }
 

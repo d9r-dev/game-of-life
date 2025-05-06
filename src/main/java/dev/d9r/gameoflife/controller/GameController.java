@@ -99,7 +99,10 @@ public class GameController {
             response.put("sessionId", newSessionId);
             return ResponseEntity.ok(response);
         } else {
-            return ResponseEntity.badRequest().build();
+            HashMap<String, String> response = new HashMap<>();
+            response.put("error", "true");
+            response.put("message", "Session already exists");
+            return ResponseEntity.badRequest().body(response);
         }
     }
 
