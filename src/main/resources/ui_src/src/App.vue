@@ -13,6 +13,67 @@
 </template>
 
 <script lang="ts" setup>
+class GameBuffer {
+  private buffer: Grid[]
+  private readonly renderFps: number
+  private isRunning: boolean
+  private readonly frameInterval: number
+  private lastRenderTime: number
+  private readonly maxBufferLength: number
+
+  constructor(renderFps = 30) {
+    this.renderFps = renderFps
+    this.isRunning = false
+    this.frameInterval = 1000 / this.renderFps
+    this.lastRenderTime = performance.now()
+    this.buffer = []
+    this.maxBufferLength = 60
+  }
+
+  addState(grid: Grid) {
+    this.buffer.push(grid)
+
+    if (this.buffer.length > this.maxBufferLength) {
+      const overflow = this.buffer.length - this.maxBufferLength
+      this.buffer = this.buffer.slice(overflow)
+      console.log(`Buffer overflow: dropped ${overflow} frame(s)`)
+    }
+
+    if (!this.isRunning) {
+      this.isRunning = true
+      this.render()
+    }
+  }
+
+  render(timestamp?: number) {
+    if (!this.isRunning) {
+      return
+    }
+    if (!timestamp) {
+      timestamp = performance.now()
+    }
+
+    const elapsed = timestamp - this.lastRenderTime
+    if (elapsed >= this.frameInterval) {
+      this.lastRenderTime = timestamp - (elapsed % this.frameInterval)
+
+      if (this.buffer.length > 0) {
+        const nextState = this.buffer.shift()!
+        this.renderFunction(nextState)
+      }
+    }
+
+    if (this.buffer.length === 0) {
+      this.isRunning = false
+    } else {
+      requestAnimationFrame(this.render.bind(this))
+    }
+  }
+
+  renderFunction(nextState: Grid) {
+    grid.value = nextState
+  }
+}
 import { ref } from 'vue'
 
 type Grid = boolean[][]
@@ -33,6 +94,7 @@ const grid = ref<Grid>([])
 const session = ref<string>('')
 const sessionId = ref<string>('')
 const eventSource = ref<EventSource>()
+const buffer = ref<GameBuffer>(new GameBuffer(30))
 
 const create = () => {
   fetch('/game/create/' + sessionId.value, {
@@ -72,7 +134,7 @@ const connectToSession = (sessionId: string) => {
   })
 
   eventSource.value.addEventListener('GAME_UPDATE', (event) => {
-    grid.value = JSON.parse(event.data) as Grid
+    buffer.value.addState(JSON.parse(event.data) as Grid)
   })
 }
 
