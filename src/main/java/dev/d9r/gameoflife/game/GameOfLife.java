@@ -3,6 +3,8 @@ import dev.d9r.gameoflife.game.service.GameService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
+
 public class GameOfLife {
     private static final Logger LOG = LoggerFactory.getLogger(GameOfLife.class);
 
@@ -11,6 +13,7 @@ public class GameOfLife {
     private boolean[][] board;
     private boolean running;
     private String sessionId;
+    private LocalDateTime lastmodified;
 
     //TODO: Insert a game template
     public GameOfLife(GameService gameService, String sessionId) {
@@ -18,6 +21,7 @@ public class GameOfLife {
         this.setBoard(this.gameService.createRandomGame(200, 200));
         this.startGame();
         this.setSessionId(sessionId);
+        this.setLastmodified(LocalDateTime.now());
     }
 
     public void printBoard() {
@@ -36,10 +40,12 @@ public class GameOfLife {
 
     public void pauseGame() {
         this.setRunning(false);
+        this.setLastmodified(LocalDateTime.now());
     }
 
     public void startGame() {
         this.setRunning(true);
+        this.setLastmodified(LocalDateTime.now());
     }
 
     public void updateBoard() {
@@ -68,5 +74,13 @@ public class GameOfLife {
 
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
+    }
+
+    public LocalDateTime getLastmodified() {
+        return lastmodified;
+    }
+
+    public void setLastmodified(LocalDateTime lastmodified) {
+        this.lastmodified = lastmodified;
     }
 }
