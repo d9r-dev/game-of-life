@@ -9,10 +9,13 @@
     <div v-for="row in grid" class="row">
       <div key="row" v-for="cell in row" class="cell" :class="cell ? 'alive' : 'dead'"></div>
     </div>
+    <Alert></Alert>
   </div>
 </template>
 
 <script lang="ts" setup>
+import { useMessagesStore } from '@/stores/messages.ts'
+
 class GameBuffer {
   private buffer: Grid[]
   private readonly renderFps: number
@@ -20,14 +23,16 @@ class GameBuffer {
   private readonly frameInterval: number
   private lastRenderTime: number
   private readonly maxBufferLength: number
+  private rafId: number | null
 
-  constructor(renderFps = 30) {
+  constructor(renderFps = 60) {
     this.renderFps = renderFps
     this.isRunning = false
     this.frameInterval = 1000 / this.renderFps
     this.lastRenderTime = performance.now()
     this.buffer = []
-    this.maxBufferLength = 60
+    this.maxBufferLength = 120
+    this.rafId = null
   }
 
   addState(grid: Grid) {
@@ -41,7 +46,7 @@ class GameBuffer {
 
     if (!this.isRunning) {
       this.isRunning = true
-      this.render()
+      this.rafId = requestAnimationFrame(this.render.bind(this))
     }
   }
 
@@ -49,6 +54,7 @@ class GameBuffer {
     if (!this.isRunning) {
       return
     }
+
     if (!timestamp) {
       timestamp = performance.now()
     }
@@ -65,16 +71,26 @@ class GameBuffer {
 
     if (this.buffer.length === 0) {
       this.isRunning = false
+      this.rafId = null
     } else {
-      requestAnimationFrame(this.render.bind(this))
+      this.rafId = requestAnimationFrame(this.render.bind(this))
     }
   }
 
+  stop() {
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId)
+      this.rafId = null
+    }
+    this.isRunning = false
+  }
+
   renderFunction(nextState: Grid) {
-    grid.value = nextState
+    grid.value = JSON.parse(JSON.stringify(nextState))
   }
 }
 import { ref } from 'vue'
+import Alert from '@/components/__tests__/Alert.vue'
 
 type Grid = boolean[][]
 type ErrorMessage = {
@@ -94,7 +110,8 @@ const grid = ref<Grid>([])
 const session = ref<string>('')
 const sessionId = ref<string>('')
 const eventSource = ref<EventSource>()
-const buffer = ref<GameBuffer>(new GameBuffer(30))
+const buffer = ref<GameBuffer>(new GameBuffer(60))
+const { addMessage } = useMessagesStore()
 
 const create = () => {
   fetch('/game/create/' + sessionId.value, {
@@ -106,7 +123,7 @@ const create = () => {
     .then((data: CreateMessage | ErrorMessage) => {
       if ('error' in data) {
         console.error('Could not create game: ' + data.message)
-        alert('Could not create game: ' + data.message)
+        addMessage('Could not create game: ' + data.message)
       } else {
         session.value = data.sessionId!
         connectToSession(session.value)
@@ -134,7 +151,14 @@ const connectToSession = (sessionId: string) => {
   })
 
   eventSource.value.addEventListener('GAME_UPDATE', (event) => {
-    buffer.value.addState(JSON.parse(event.data) as Grid)
+    const data = JSON.parse(event.data)
+    buffer.value.addState(data.state)
+  })
+
+  eventSource.value.addEventListener('ERROR', (event) => {
+    const errorMessage = JSON.parse(event.data)
+    console.error('Server error:', errorMessage)
+    addMessage('Server error: ' + errorMessage)
   })
 }
 
@@ -148,27 +172,29 @@ const start = () => {
   })
     .then((response) => {
       if (response.ok) {
-        return response.json()
+        return response.text()
       }
       throw new Error(response.statusText)
     })
     .then((data) => {
       console.log(data)
+      addMessage('Game started')
     })
 }
 
 const stop = () => {
+  buffer.value.stop()
   fetch('/game/' + session.value + '/stop', {
     method: 'POST',
   })
     .then((response) => {
       if (response.ok) {
-        return response.json()
+        return response.text()
       }
       throw new Error(response.statusText)
     })
-    .then((data) => {
-      console.log(data)
+    .then(() => {
+      addMessage('Game stopped')
     })
 }
 </script>
