@@ -92,7 +92,6 @@ class GameBuffer {
 import { ref } from 'vue'
 import Alert from '@/components/__tests__/Alert.vue'
 
-type Grid = boolean[][]
 type ErrorMessage = {
   error: string
   message: string
