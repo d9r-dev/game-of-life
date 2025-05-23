@@ -1,5 +1,6 @@
 package dev.d9r.gameoflife.game;
 
+import dev.d9r.gameoflife.utility.BinaryGridEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -100,7 +101,9 @@ public class GameManager {
     // Add timestamp to help with client-side rendering
     Map<String, Object> payload = new HashMap<>();
     payload.put("timestamp", System.currentTimeMillis());
-    payload.put("state", gameState);
+    payload.put("rows", gameState.length);
+    payload.put("cols", gameState[0].length);
+    payload.put("board", BinaryGridEncoder.encode(gameState));
 
     for (SseEmitter emitter : sessionEmitters) {
       try {

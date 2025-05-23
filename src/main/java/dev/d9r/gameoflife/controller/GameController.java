@@ -2,6 +2,7 @@ package dev.d9r.gameoflife.controller;
 
 import dev.d9r.gameoflife.game.GameManager;
 import dev.d9r.gameoflife.game.GameOfLife;
+import dev.d9r.gameoflife.utility.BinaryGridEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +28,7 @@ public class GameController {
   public SseEmitter streamGameUpdates(@PathVariable String sessionId) {
     // Create emitter with a longer timeout
     SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
-    
+
     var game = gameManager.getGame(sessionId);
     if (game == null) {
       try {
@@ -41,7 +42,7 @@ public class GameController {
 
     // Register emitter with the game manager
     gameManager.registerEmitter(sessionId, emitter);
-    
+
     // Set up completion callbacks
     emitter.onCompletion(() -> gameManager.removeEmitter(sessionId, emitter));
     emitter.onTimeout(() -> gameManager.removeEmitter(sessionId, emitter));
@@ -50,7 +51,10 @@ public class GameController {
     // Send an initial event to establish the connection
     try {
       Map<String, Object> data = new HashMap<>();
-      data.put("board", game.getBoard());
+      boolean[][] board = game.getBoard();
+      data.put("rows", board.length);
+      data.put("cols", board[0].length);
+      data.put("board", BinaryGridEncoder.encode(board));
       data.put("sessionId", sessionId);
       data.put("message", "Connection established!");
       emitter.send(SseEmitter.event().name("INIT").data(data));

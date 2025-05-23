@@ -91,6 +91,7 @@ class GameBuffer {
 }
 import { ref } from 'vue'
 import Alert from '@/components/__tests__/Alert.vue'
+import { decodeBinaryGrid } from '@/util/encode.ts'
 
 type ErrorMessage = {
   error: string
@@ -99,10 +100,15 @@ type ErrorMessage = {
 type CreateMessage = {
   sessionId: string
 }
-type InitMessage = {
-  board: Grid
+type InitMessage = UpdateData & {
   sessionId: string
   message: string
+}
+
+type UpdateData = {
+  board: string
+  rows: number
+  cols: number
 }
 
 const grid = ref<Grid>([])
@@ -144,14 +150,15 @@ const connectToSession = (sessionId: string) => {
 
   eventSource.value.addEventListener('INIT', (event) => {
     const data = JSON.parse(event.data) as InitMessage
-    grid.value = data.board
+    grid.value = decodeBinaryGrid(data.board, data.rows, data.cols)
     console.log(data.message)
     sessionId = data.sessionId
   })
 
   eventSource.value.addEventListener('GAME_UPDATE', (event) => {
-    const data = JSON.parse(event.data)
-    buffer.value.addState(data.state)
+    const data: UpdateData = JSON.parse(event.data)
+    const state = decodeBinaryGrid(data.board, data.rows, data.cols)
+    buffer.value.addState(state)
   })
 
   eventSource.value.addEventListener('ERROR', (event) => {
